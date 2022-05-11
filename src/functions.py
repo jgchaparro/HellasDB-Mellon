@@ -19,11 +19,12 @@ from statsmodels.tsa.arima.model import ARIMA
 #%% Generate forecasts
 
 def evaluate_forecasts(ts, 
+                      exog = None,
                       region_name = None,
                       break_year = 2016,
                       max_pred_year = 2025,
                       plot = False,
-                      ps = [i for i in range(1, 8)],
+                      ps = [i for i in range(6)],
                       ds = [i for i in range(2)],
                       qs = [i for i in range(6)]):
     
@@ -45,9 +46,11 @@ def evaluate_forecasts(ts,
 #     
 #         return array
 # =============================================================================
+
+    print(f'Generating model for {region_name}')
     
     # Generate splits    
-    break_time = dt(break_year, 1, 1)
+    break_time = dt(break_year, 12, 31)
     ts_train = ts[ts.index <= break_time]
     ts_test = ts[ts.index > break_time]
 
@@ -60,27 +63,32 @@ def evaluate_forecasts(ts,
         for d in ds:
             for q in qs:
                 try:
-                    # Initialize model
-                    arima = ARIMA(ts_train, order = (p, d, q))
-                    res = arima.fit()
+                    print(f'Testing for ({p}, {d}, {q})')
                     
+                    # Initialize model
+                    sarimax = ARIMA(ts_train, 
+                                      #exog = exog,
+                                      order = (p, d, q))
+                    res = sarimax.fit()
+                        
                     # Get and evaluate predictions
-                    ts_pred = res.predict(start = dt(break_year + 1, 1, 1), 
-                                          end = dt(2021, 1, 1))
+                    ts_pred = res.predict(start = dt(break_year + 1, 12, 31), 
+                                          end = dt(2021, 12, 31))
                     #ts_pred = replace_negatives(ts_pred)
                     rmse = mse(ts_test, ts_pred, squared = False)
                     
                     # Compare model with temporary best
                     if rmse < min_rmse:
-                        best_model = arima
+                        best_model = sarimax
                         min_rmse = rmse
                 except:
+                    print('Error')
                     pass
                 
     # Compute forecasts for best model
     # bm = best model
     bm_res = best_model.fit()
-    bm_pred = bm_res.get_prediction(start = dt(2021, 1, 1), 
+    bm_pred = bm_res.get_prediction(start = dt(2022, 1, 1), 
                                       end = dt(max_pred_year, 1, 1)).summary_frame()
     print(bm_pred)
     

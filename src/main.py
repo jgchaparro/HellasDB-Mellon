@@ -20,6 +20,9 @@ from statsmodels.tsa.arima.model import ARIMA
 
 from functions import evaluate_forecasts
 
+import warnings
+warnings.filterwarnings("ignore")
+
 #%% Import data
 
 pop_filename = 'ypol_plith.xlsx'
@@ -37,15 +40,27 @@ df = dfs['plith_raw'].copy()
 
 df = dfs['plith_raw'].copy()
 
-#%% Analysis for nomos Evrou
+df.columns = [col.replace('ΝΟΜΟΣ ', '').replace(' ', '_') for col in df.columns]
+df.index = pd.date_range('2002', periods = len(df), freq = 'Y') #También 'AS-JAN'    
+df.index.name = 'year'
 
-evrou_raw = df['ΝΟΜΟΣ ΛΕΥΚΑΔΟΣ']
+#%% Save population.csv
 
-break_time = dt(2016, 1, 1)
+df.to_csv('../data/processed_csv/population.csv')
+
+#%% Load population.csv
+
+df = pd.read_csv('../data/processed_csv/population.csv', index_col = 'year')
+
+#%% Analysis for nomos Evrou SUCIOOOO
+
+evrou_raw = df['ΚΕΡΚΥΡΑΣ']
+
+break_time = dt(2016, 12, 31)
 e_train = evrou_raw[evrou_raw.index <= break_time]
 e_test = evrou_raw[evrou_raw.index > break_time]
 
-arima = ARIMA(e_train, order = (6, 0, 2)) #6, 0, 2
+arima = ARIMA(e_train, order = (4, 0, 1)) #6, 0, 2
 res = arima.fit()
 print(res.summary())
 
@@ -56,7 +71,7 @@ e_pred = res.predict(start = dt(2017, 1, 1), end = dt(2021, 1, 1))
 print(mse(e_test, e_pred, squared = False))
 
 #res.predict(start = dt(2017, 1, 1), end = dt(2021, 1, 1)).summary_frame()
-e_pred_data = res.get_prediction(start = dt(2021, 1, 1), end = dt(2030, 1, 1)).summary_frame()
+e_pred_data = res.get_prediction(start = dt(2017, 1, 1), end = dt(2021, 1, 1)).summary_frame()
 res.get_prediction(start = dt(2021, 1, 1), end = dt(2030, 1, 1)).summary_frame()
 e_pred_data['mean'].plot(c = 'b')
 e_test.plot(c = 'g')
@@ -72,12 +87,77 @@ e_pred_data['mean_ci_upper'].plot(c = 'r')
 
 autocorrelation_plot(evrou_raw)
 
+#%% Load deaths data
+
+deaths = pd.read_csv('../data/processed_csv/deceases.csv', index_col = 'Unnamed: 0')
+
 #%% Test functions
 
-reg = evaluate_forecasts(evrou_raw,
-                         region_name = 'ΕΒΡΟΥ',
+region = 'ΗΡΑΚΛΕΙΟΥ'
+
+reg = evaluate_forecasts(df[region],
+#                         exog = 
+                         region_name = region,
                          max_pred_year = 2030,
                          plot = True)
+
+
+#%% Compute models for all nomos
+
+timeseries = {}
+
+generate_forecasts = False
+
+if generate_forecasts:
+    for region in df.columns:
+        ts = df[region]
+        print(f'{region}')
+        
+        timeseries[region] = evaluate_forecasts(ts,
+                                 region_name = region,
+                                 max_pred_year = 2030,
+                                 plot = True)
+    
+    predictions_df = pd.DataFrame(
+                        data = {key : timeseries[key]['forecast']['mean'] 
+                                for key in timeseries.keys()})
+    predictions_df.index.name = 'year'
+    
+else:
+    predictions_df = pd.read_csv('../data/processed_csv/forecasts.csv', 
+                                 index_col = 'year')
+
+full_timeseries_df = pd.concat([df, predictions_df], axis = 0)
+
+#%% Save predictions
+
+predictions_df.to_csv('../data/processed_csv/forecasts.csv')
+full_timeseries_df.to_csv('../data/processed_csv/full_timeseries.csv')
+
+#%% Load predictions
+
+predictions_df = pd.read_csv('../data/processed_csv/forecasts.csv', index_col = 'year')
+full_timeseries_df = pd.read_csv('../data/processed_csv/full_timeseries.csv', index_col = 'year')
+
+#%% Save full timeseries to df
+
+full_timeseries_df.to_excel('../data/final_data/full_timeseries.xlsx', 
+                            sheet_name = 'timeseries')
+
+#%% Unroll full timeseries
+
+# Objetive: get a year, province, value structure
+
+unrolled_timeseries = pd.columns
+
+for col in full_timeseries_df.columns:
+    pass
+    
+pd.DataFrame(data = {
+            'year' : [i for i in range(2002, 2031)], 
+            'nomos' : ['ΕΒΡΟΥ'] * len(full_timeseries_df), 
+            'population' : full_timeseries_df['ΕΒΡΟΥ'].tolist()
+            })
 
 
 #%% Useful lines
@@ -94,3 +174,4 @@ e_pred_data = res.get_prediction(start = dt(2017, 1, 1), end = dt(2025, 1, 1)).s
 e_pred_data['mean'].plot(c = 'b')
 e_pred_data['mean_ci_lower'].plot(c = 'r') 
 e_pred_data['mean_ci_upper'].plot(c = 'r') 
+
