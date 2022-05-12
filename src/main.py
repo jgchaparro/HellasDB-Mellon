@@ -60,7 +60,7 @@ break_time = dt(2016, 12, 31)
 e_train = evrou_raw[evrou_raw.index <= break_time]
 e_test = evrou_raw[evrou_raw.index > break_time]
 
-arima = ARIMA(e_train, order = (4, 0, 1)) #6, 0, 2
+arima = ARIMA(e_train, order = (2, 1, 2)) #6, 0, 2
 res = arima.fit()
 print(res.summary())
 
@@ -144,21 +144,36 @@ full_timeseries_df = pd.read_csv('../data/processed_csv/full_timeseries.csv', in
 full_timeseries_df.to_excel('../data/final_data/full_timeseries.xlsx', 
                             sheet_name = 'timeseries')
 
+#%% Load full timeseries to df
+
+full_timeseries_df = pd.read_excel('../data/final_data/full_timeseries.xlsx', 
+                            sheet_name = 'timeseries', index_col = 'year')
+full_timeseries_df.index = full_timeseries_df.index.astype('datetime64[ns]')
+
+
 #%% Unroll full timeseries
 
 # Objetive: get a year, province, value structure
 
-unrolled_timeseries = pd.columns
-
+unrolled_df = pd.DataFrame(data = None)
 for col in full_timeseries_df.columns:
-    pass
-    
-pd.DataFrame(data = {
-            'year' : [i for i in range(2002, 2031)], 
-            'nomos' : ['ΕΒΡΟΥ'] * len(full_timeseries_df), 
-            'population' : full_timeseries_df['ΕΒΡΟΥ'].tolist()
-            })
+    region_unroll = pd.DataFrame(data = {
+                'year' : [i for i in range(2002, 2031)], 
+                'nomos' : [col] * len(full_timeseries_df), 
+                'population' : full_timeseries_df[col].tolist()
+                })
+    unrolled_df = pd.concat([unrolled_df, region_unroll], axis = 0)
 
+unrolled_df.to_excel('../data/final_data/unrolled_timeseries.xlsx')
+    
+# =============================================================================
+# pd.DataFrame(data = {
+#             'year' : [i for i in range(2002, 2031)], 
+#             'nomos' : ['ΕΒΡΟΥ'] * len(full_timeseries_df), 
+#             'population' : full_timeseries_df['ΕΒΡΟΥ'].tolist()
+#             })
+# 
+# =============================================================================
 
 #%% Useful lines
 

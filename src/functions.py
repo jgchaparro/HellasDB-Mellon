@@ -22,7 +22,7 @@ def evaluate_forecasts(ts,
                       exog = None,
                       region_name = None,
                       break_year = 2016,
-                      max_pred_year = 2025,
+                      max_pred_year = 2030,
                       plot = False,
                       ps = [i for i in range(6)],
                       ds = [i for i in range(2)],
@@ -73,7 +73,7 @@ def evaluate_forecasts(ts,
                         
                     # Get and evaluate predictions
                     ts_pred = res.predict(start = dt(break_year + 1, 12, 31), 
-                                          end = dt(2021, 12, 31))
+                                          end = dt(ts.index[-1].year, 12, 31))
                     #ts_pred = replace_negatives(ts_pred)
                     rmse = mse(ts_test, ts_pred, squared = False)
                     
@@ -88,8 +88,8 @@ def evaluate_forecasts(ts,
     # Compute forecasts for best model
     # bm = best model
     bm_res = best_model.fit()
-    bm_pred = bm_res.get_prediction(start = dt(2022, 1, 1), 
-                                      end = dt(max_pred_year, 1, 1)).summary_frame()
+    bm_pred = bm_res.get_prediction(start = dt(ts.index[-1].year + 1, 12, 31), 
+                                      end = dt(max_pred_year, 12, 31)).summary_frame()
     print(bm_pred)
     
     
