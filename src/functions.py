@@ -302,6 +302,7 @@ def evaluate_forecasts_sarimax(endog, exog,
                          order = best_model.order,
                          trend = best_model.trend)
     sarimax_bm_res = sarimax_bm.fit()
+    print(sarimax_bm_res.summary())
     sarimax_bm_pred = sarimax_bm_res.get_prediction(exog = exog_pred,
                                     start = dt(endog.index[-1].year + 1, 12, 31), 
                                       end = dt(max_pred_year, 12, 31)).summary_frame()

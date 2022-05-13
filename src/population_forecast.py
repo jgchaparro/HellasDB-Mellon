@@ -43,6 +43,10 @@ df.columns = [col.replace('ΝΟΜΟΣ ', '').replace(' ', '_') for col in df.col
 df.index = pd.date_range('2002', periods = len(df), freq = 'Y') #También 'AS-JAN'    
 df.index.name = 'year'
 
+# Remove dots from Achaea
+df.rename(columns = {'ΑΧΑΪΑΣ' : 'ΑΧΑΙΑΣ'}, inplace = True)
+
+
 #%% Save population.csv
 
 df.to_csv('../data/processed_csv/population.csv')
