@@ -4,7 +4,7 @@ save_data_on_exit = True
 save_history = True
 save_non_project_files = False
 project_type = 'empty-project-type'
-recent_files = ['main.py', 'auxiliary_forecasts.py', 'functions.py', '..\\..\\..\\..\\anaconda3\\lib\\site-packages\\statsmodels\\tsa\\statespace\\representation.py']
+recent_files = ['functions.py', 'population_forecast.py', 'deceases_forecast.py', 'births_forecast.py', 'weddings_forecast.py']
 
 [main]
 version = 0.2.0

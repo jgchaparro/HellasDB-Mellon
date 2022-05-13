@@ -51,16 +51,19 @@ df.to_csv('../data/processed_csv/population.csv')
 #%% Load population.csv
 
 df = pd.read_csv('../data/processed_csv/population.csv', index_col = 'year')
+df.index = df.index.astype('datetime64[ns]')
+df.index.freq = 'Y'
+
 
 #%% Analysis for nomos Evrou SUCIOOOO
 
-evrou_raw = df['ΚΕΡΚΥΡΑΣ']
+evrou_raw = df['ΛΕΥΚΑΔΟΣ']
 
 break_time = dt(2016, 12, 31)
 e_train = evrou_raw[evrou_raw.index <= break_time]
 e_test = evrou_raw[evrou_raw.index > break_time]
 
-arima = ARIMA(e_train, order = (2, 1, 2)) #6, 0, 2
+arima = ARIMA(e_train, order = (6, 0, 2)) #6, 0, 2
 res = arima.fit()
 print(res.summary())
 

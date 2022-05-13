@@ -1,19 +1,17 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed May 11 11:35:01 2022
+Created on Thu May 12 13:13:23 2022
 
 @author: Jaime García Chaparr
 """
-
-#%% Import modules
 
 import pandas as pd
 import numpy as np
 from functions import evaluate_forecasts_2
 
+import pickle
 import warnings
 warnings.filterwarnings("ignore")
-
 
 #%% Create forecasts for deaths
 
@@ -88,16 +86,9 @@ deceases_df = pd.read_csv('../data/processed_csv/deceases.csv',
 deceases_df.index = deceases_df.index.astype('datetime64[ns]')
 deceases_df.index.freq = 'Y'
 
-#%% Extend timeseries until 2030
+#%% Generate timeseries
 
-
-# =============================================================================
-# reg = evaluate_forecasts(deceases_df[region],
-#                          region_name = region,
-#                          max_pred_year = 2030,
-#                          plot = True)
 deceases_timeseries = {}
-
 
 generate_forecasts = True
 
@@ -106,7 +97,7 @@ if generate_forecasts:
         ts = deceases_df[region]
         print(f'{region}')
         
-        deceases_timeseries[region] = evaluate_forecasts(ts,
+        deceases_timeseries[region] = evaluate_forecasts_2(ts,
                                  region_name = region,
                                  max_pred_year = 2030,
                                  plot = True)
@@ -120,36 +111,56 @@ else:
     deceases_pred_df = pd.read_csv('../data/processed_csv/deceases_forecasts.csv', 
                                  index_col = 'year')
 
+pickle.dump(deceases_timeseries, open('deceases_timeseries.p', "wb"))
+
 full_deceases_timeseries_df = pd.concat([deceases_df, deceases_pred_df], axis = 0)
 
-#%% Save .csv
+#%% Save predictions
 
 deceases_pred_df.to_csv('../data/processed_csv/deceases_forecasts.csv')
-full_deceases_timeseries_df.to_csv('../data/processed_csv/deceases_full_timeseries.csv')
+full_deceases_timeseries_df.to_csv('../data/processed_csv/full_deceases_timeseries.csv')
 
-#%% Load .csv
+#%% Load predictions
 
-deceases_pred_df = pd.read_csv('../data/processed_csv/deceases_forecasts.csv', 
-                               index_col = 'year')
+deceases_pred_df = pd.read_csv('../data/processed_csv/deceases_forecasts.csv', index_col = 'year')
 deceases_pred_df.index = deceases_pred_df.index.astype('datetime64[ns]')
+deceases_pred_df.index.freq = 'Y'
 
-full_deceases_timeseries_df = pd.read_csv('../data/processed_csv/deceases_full_timeseries.csv', 
-                                          index_col = 'year')
-full_deceases_timeseries_df.index = full_deceases_timeseries_df .index.astype('datetime64[ns]')
+full_deceases_timeseries_df = pd.read_csv('../data/processed_csv/full_deceases_timeseries.csv', index_col = 'year')
+full_deceases_timeseries_df .index = full_deceases_timeseries_df .index.astype('datetime64[ns]')
+full_deceases_timeseries_df .index.freq = 'Y'
 
-#%% Unroll deceases df
+#%% Save full deceases timeseries to df
+
+full_deceases_timeseries_df.to_excel('../data/final_data/full_timeseries_2.xlsx', 
+                            sheet_name = 'deceases')
+
+
+#%% Unroll timseries
+
+# Objetive: get a year, province, value structure
 
 unrolled_df = pd.DataFrame(data = None)
-for col in full_deceases_timeseries_df.columns:
-    region_unroll = pd.DataFrame(data = {
-                'year' : [i for i in range(2000, 2031)], 
-                'nomos' : [col] * len(full_deceases_timeseries_df ), 
-                'deaths' : full_deceases_timeseries_df [col].tolist()
-                })
-    unrolled_df = pd.concat([unrolled_df, region_unroll], axis = 0)
+for col in deceases_timeseries.keys():
+    deceases_data_unroll =  pd.DataFrame(data = {
+                'year' : [i for i in range(2000, 2021)], 
+                'nomos' : [col] * len(deceases_df), 
+                'deceases' : deceases_df[col].tolist(),
+                'deceases_ci_lower' : deceases_df[col].tolist(),
+                'deceases_ci_upper' : deceases_df[col].tolist()})
+                
+    
+    deceases_pred_unroll = pd.DataFrame(data = {
+                'year' : [i for i in range(2021, 2031)], 
+                'nomos' : [col] * len(deceases_pred_df), 
+                'deceases' : deceases_timeseries[col]['forecast']['mean'],
+                'deceases_ci_lower' : deceases_timeseries[col]['forecast']['mean_ci_lower'],
+                'deceases_ci_upper' : deceases_timeseries[col]['forecast']['mean_ci_upper']})
+    
+    deceases_full_unroll = pd.concat([deceases_data_unroll, deceases_pred_unroll], axis = 0)
+    unrolled_df = pd.concat([unrolled_df, deceases_full_unroll], axis = 0)
+    unrolled_df.reset_index(drop = True, inplace = True)
 
-unrolled_df.to_excel('../data/final_data/unrolled_deceases_timeseries.xlsx')
-
-
-
-
+unrolled_df.to_excel('../data/final_data/unrolled_deceases_timeseries.xlsx',
+                     sheet_name = 'Deceases')
+    
