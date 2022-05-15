@@ -93,7 +93,9 @@ pickle.dump(population_sarimax_timeseries, open('population_sarimax_timeseries.p
 
 #%% Correct predictions
 
-correct_regions = ['ΕΥΡΥΤΑΝΙΑΣ']
+correct_regions = ['ΕΥΡΥΤΑΝΙΑΣ', 'ΛΕΥΚΑΔΟΣ', 'ΛΕΣΒΟΥ', 'ΛΑΚΩΝΙΑΣ', 'ΒΟΙΩΤΙΑΣ',
+                   'ΑΡΤΗΣ', 'ΑΙΤΩΛΙΑΣ_ΚΑΙ_ΑΚΑΡΝΑΝΙΑΣ', 'ΚΑΣΤΟΡΙΑΣ', 'ΚΙΛΚΙΣ',
+                   'ΠΙΕΡΙΑΣ', 'ΡΟΔΟΠΗΣ']
 
 exclude = {key : [population_sarimax_timeseries[key]['order']]
            for key in correct_regions}
@@ -113,11 +115,41 @@ for region in exclude.keys():
                                                              #ds = [0],
                                                              #qs = [3]
                                                              )
+    
+    population_sarimax_timeseries[region] = corrected_population_sarimax_timeseries[region]
      
     population_sarimax_pred_df[region] = corrected_population_sarimax_timeseries[region]['forecast']['mean']
 
 # YONA Y SONIA, SI LEÉIS ESTO, HABÉIS MENTIDO, YA LO DIJO PATRI
 
+#%% Second corrections
+
+second_correct_regions = ['ΚΙΛΚΙΣ']
+
+second_exclude = {key : [population_sarimax_timeseries[key]['order'],
+                         corrected_population_sarimax_timeseries[key]['order']]
+           for key in second_correct_regions}
+
+second_corrected_population_sarimax_timeseries = {}
+ 
+for region in second_exclude.keys():
+    ts = population_df[region]
+    print(f'{region}')
+     
+    second_corrected_population_sarimax_timeseries[region] = correct_forecasts(ts,
+                                                             region_name = region,
+                                                             max_pred_year = 2030,
+                                                             plot = True,
+                                                             exclude = exclude,
+                                                             ps = [1, 2, 3],
+                                                             ds = [0],
+                                                             qs = [1]
+                                                             )
+    
+    population_sarimax_timeseries[region] = second_corrected_population_sarimax_timeseries[region]
+    
+    population_sarimax_pred_df[region] = second_corrected_population_sarimax_timeseries[region]['forecast']['mean']
+    
 full_population_sarimax_timeseries_df = pd.concat([population_df, population_sarimax_pred_df], axis = 0)
 
 #%% Save predictions
