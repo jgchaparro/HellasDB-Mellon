@@ -7,7 +7,7 @@ Created on Fri May 13 15:28:09 2022
 
 import pandas as pd
 import numpy as np
-from functions import evaluate_forecasts_sarimax
+from functions import evaluate_forecasts_sarimax, correct_forecasts
 
 import pickle
 import warnings
@@ -83,13 +83,40 @@ if generate_forecasts:
     population_sarimax_pred_df = pd.DataFrame(
                         data = {key : population_sarimax_timeseries[key]['forecast']['mean'] 
                                 for key in population_sarimax_timeseries.keys()})
-    population_sarimax_pred_df .index.name = 'year'
+    population_sarimax_pred_df.index.name = 'year'
     
 else:
     population_sarimax_pred_df = pd.read_csv('../data/processed_csv/population_sarimax_forecasts.csv', 
                                  index_col = 'year')
 
 pickle.dump(population_sarimax_timeseries, open('population_sarimax_timeseries.p', "wb"))
+
+#%% Correct predictions
+
+correct_regions = ['ΕΥΡΥΤΑΝΙΑΣ']
+
+exclude = {key : [population_sarimax_timeseries[key]['order']]
+           for key in correct_regions}
+ 
+corrected_population_sarimax_timeseries = {}
+ 
+for region in exclude.keys():
+    ts = population_df[region]
+    print(f'{region}')
+     
+    corrected_population_sarimax_timeseries[region] = correct_forecasts(ts,
+                                                             region_name = region,
+                                                             max_pred_year = 2030,
+                                                             plot = True,
+                                                             exclude = exclude
+                                                             #ps = [3],
+                                                             #ds = [0],
+                                                             #qs = [3]
+                                                             )
+     
+    population_sarimax_pred_df[region] = corrected_population_sarimax_timeseries[region]['forecast']['mean']
+
+# YONA Y SONIA, SI LEÉIS ESTO, HABÉIS MENTIDO, YA LO DIJO PATRI
 
 full_population_sarimax_timeseries_df = pd.concat([population_df, population_sarimax_pred_df], axis = 0)
 

@@ -7,8 +7,9 @@ Created on Thu May 12 15:42:58 2022
 
 import pandas as pd
 import numpy as np
-from functions import evaluate_forecasts_2
+from functions import evaluate_forecasts_2, correct_forecasts
 
+import pickle
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -25,14 +26,14 @@ weddings_df.index.name = 'year'
 
 weddings_timeseries = {}
 
-generate_forecasts = True
+generate_forecasts = False
 
 if generate_forecasts:
     for region in weddings_df.columns:
         ts = weddings_df[region]
         print(f'{region}')
         
-        weddings_timeseries[region] = evaluate_forecasts_2(ts,
+        weddings_timeseries[region] = evaluate_forecasts_2(ts[:-1],
                                  region_name = region,
                                  max_pred_year = 2030,
                                  plot = True)
@@ -46,7 +47,89 @@ else:
     weddings_pred_df = pd.read_csv('../data/processed_csv/weddings_forecasts.csv', 
                                  index_col = 'year')
 
-full_weddings_timeseries_df = pd.concat([weddings_df, weddings_pred_df], axis = 0)
+#pickle_file = open('weddings_timeseries.p', "wb")
+#pick = pickle.dump(weddings_timeseries, pickle_file)
+#pickle_file.close()
+
+weddings_timeseries = pickle.load(open('weddings_timeseries.p', "rb"))
+
+#full_weddings_timeseries_df = pd.concat([weddings_df, weddings_pred_df], axis = 0)
+
+# Remove predictions for 2020
+
+
+#%% Correct predictions
+
+correct_regions = ['ΕΒΡΟΥ', 'ΞΑΝΘΗΣ', 'ΗΜΑΘΙΑΣ', 'ΠΙΕΡΙΑΣ', 'ΧΑΛΚΙΔΙΚΗΣ', 'ΚΟΖΑΝΗΣ', 
+                   'ΜΑΓΝΗΣΙΑΣ', 'ΑΡΤΗΣ', 'ΙΩΑΝΝΙΝΩΝ', 'ΚΕΡΚΥΡΑΣ', 'ΑΧΑΙΑΣ', 
+                   'ΛΑΚΩΝΙΑΣ', 'ΜΕΣΣΗΝΙΑΣ', 'ΚΙΛΚΙΣ', 'ΚΟΡΙΝΘΙΑΣ', 'ΒΟΙΩΤΙΑΣ',
+                   'ΚΥΚΛΑΔΩΝ']
+
+exclude = {key : [weddings_timeseries[key]['order']]
+           for key in correct_regions}
+ 
+corrected_weddings_timeseries = {}
+ 
+for region in exclude.keys():
+    ts = weddings_df[region]
+    print(f'{region}')
+     
+    corrected_weddings_timeseries[region] = correct_forecasts(ts,
+                                                             region_name = region,       
+                                                             max_pred_year = 2030,
+                                                             plot = True,
+                                                             exclude = exclude
+                                                             #ps = [3],
+                                                             #ds = [0],
+                                                             #qs = [3]
+                                                             )
+
+    weddings_timeseries[region] = corrected_weddings_timeseries[region]
+     
+    weddings_pred_df[region] = corrected_weddings_timeseries[region]['forecast']['mean']
+ 
+
+#%% Second corrections
+
+second_correct_regions = ['ΕΒΡΟΥ', 'ΑΡΤΗΣ', 'ΙΩΑΝΝΙΝΩΝ', 'ΚΟΡΙΝΘΙΑΣ', 'ΜΕΣΣΗΝΙΑΣ',
+                          'ΚΥΚΛΑΔΩΝ']
+second_exclude = {key : [weddings_timeseries[key]['order'],
+                         corrected_weddings_timeseries[key]['order']]
+           for key in second_correct_regions}
+
+second_corrected_weddings_timeseries = {}
+ 
+for region in second_exclude.keys():
+    ts = weddings_df[region]
+    print(f'{region}')
+     
+    second_corrected_weddings_timeseries[region] = correct_forecasts(ts,
+                                                             region_name = region,
+                                                             max_pred_year = 2030,
+                                                             plot = True,
+                                                             exclude = exclude,
+                                                             ps = [1, 2, 3],
+                                                             ds = [0],
+                                                             qs = [1]
+                                                             )
+    
+    weddings_timeseries[region] = second_corrected_weddings_timeseries[region]
+    
+    weddings_pred_df[region] = second_corrected_weddings_timeseries[region]['forecast']['mean']
+
+#weddings_pred_df = weddings_pred_df.iloc[1:, :]
+
+# Reconstruct predictions
+
+new_weddings_pred_df = pd.DataFrame(data = None)
+for col in weddings_df.columns:
+    new_weddings_pred_df[col] = weddings_timeseries[col]['forecast']['mean']
+
+new_weddings_pred_df = new_weddings_pred_df[1:]
+
+# Save final timeseries
+full_weddings_timeseries_df = pd.concat([weddings_df, new_weddings_pred_df], 
+                                         axis = 0)
 
 #%% Save predictions
 
@@ -74,6 +157,7 @@ full_weddings_timeseries_df.to_excel('../data/final_data/full_timeseries_2.xlsx'
 
 unrolled_df = pd.DataFrame(data = None)
 for col in weddings_timeseries.keys():
+    print(col)
     weddings_data_unroll =  pd.DataFrame(data = {
                 'year' : [i for i in range(2000, 2021)], 
                 'nomos' : [col] * len(weddings_df), 
@@ -81,13 +165,22 @@ for col in weddings_timeseries.keys():
                 'weddings_ci_lower' : weddings_df[col].tolist(),
                 'weddings_ci_upper' : weddings_df[col].tolist()})
                 
+    if len(weddings_timeseries[col]['forecast']['mean'][1:]) == 9:
+        weddings_to_unroll = weddings_timeseries[col]['forecast']['mean']
+        weddings_lower_to_unroll = weddings_timeseries[col]['forecast']['mean_ci_lower']
+        weddings_upper_to_unroll = weddings_timeseries[col]['forecast']['mean_ci_upper']
+        
+    else:
+        weddings_to_unroll = weddings_timeseries[col]['forecast']['mean'][1:]
+        weddings_lower_to_unroll = weddings_timeseries[col]['forecast']['mean_ci_lower'][1:]
+        weddings_upper_to_unroll = weddings_timeseries[col]['forecast']['mean_ci_upper'][1:]
     
     weddings_pred_unroll = pd.DataFrame(data = {
                 'year' : [i for i in range(2021, 2031)], 
-                'nomos' : [col] * len(weddings_pred_df), 
-                'weddings' : weddings_timeseries[col]['forecast']['mean'],
-                'weddings_ci_lower' : weddings_timeseries[col]['forecast']['mean_ci_lower'],
-                'weddings_ci_upper' : weddings_timeseries[col]['forecast']['mean_ci_upper']})
+                'nomos' : [col] * (len(weddings_pred_df) + 1), 
+                'weddings' : weddings_to_unroll,
+                'weddings_ci_lower' : weddings_lower_to_unroll,
+                'weddings_ci_upper' : weddings_upper_to_unroll})
     
     weddings_full_unroll = pd.concat([weddings_data_unroll, weddings_pred_unroll], axis = 0)
     unrolled_df = pd.concat([unrolled_df, weddings_full_unroll], axis = 0)

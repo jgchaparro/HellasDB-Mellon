@@ -7,7 +7,7 @@ Created on Fri May 13 12:35:32 2022
 
 import pandas as pd
 import numpy as np
-from functions import evaluate_forecasts_sarimax
+from functions import evaluate_forecasts_sarimax, correct_forecasts
 
 import pickle
 import warnings
@@ -27,6 +27,11 @@ full_weddings_timeseries_df = pd.read_csv('../data/processed_csv/full_weddings_t
 full_weddings_timeseries_df.index = full_weddings_timeseries_df .index.astype('datetime64[ns]')
 full_weddings_timeseries_df.index.freq = 'Y'
 
+# Shift full_weddings_timeseries_df
+
+lagged_full_weddings_timeseries_df = full_weddings_timeseries_df.shift(1)
+lagged_full_weddings_timeseries_df.dropna(inplace = True)
+
 #%% Generate timeseries
 
 births_sarimax_timeseries = {}
@@ -39,9 +44,9 @@ if generate_forecasts:
         print(f'{region}')
         
         births_sarimax_timeseries[region] = evaluate_forecasts_sarimax(ts,
-                                 full_weddings_timeseries_df[region],                           
+                                 lagged_full_weddings_timeseries_df[region],                           
                                  region_name = region,
-                                 start_year = 2000,
+                                 start_year = 2001,
                                  max_pred_year = 2030,
                                  plot = True)
     
@@ -55,6 +60,63 @@ else:
                                  index_col = 'year')
 
 pickle.dump(births_sarimax_timeseries, open('births_sarimax_timeseries.p', "wb"))
+
+#%% Correct predictions
+
+correct_regions = ['ΙΩΑΝΝΙΝΩΝ', 'ΕΥΒΟΙΑΣ', 'ΛΕΣΒΟΥ', 'ΔΩΔΕΚΑΝΗΣΟΥ', 'ΠΡΕΒΕΖΗΣ',
+                   'ΛΑΡΙΣΗΣ', 'ΚΥΚΛΑΔΩΝ', 'ΗΡΑΚΛΕΙΟΥ']
+
+exclude = {key : [births_sarimax_timeseries[key]['order']]
+           for key in correct_regions}
+ 
+corrected_births_sarimax_timeseries = {}
+ 
+for region in exclude.keys():
+    ts = births_df[region]
+    print(f'{region}')
+     
+    corrected_births_sarimax_timeseries[region] = correct_forecasts(ts,
+                                                             region_name = region,
+                                                             max_pred_year = 2030,
+                                                             plot = True,
+                                                             exclude = exclude
+                                                             #ps = [3],
+                                                             #ds = [0],
+                                                             #qs = [3]
+                                                             )
+
+    births_sarimax_timeseries[region] = corrected_births_sarimax_timeseries[region]
+     
+    births_sarimax_pred_df[region] = corrected_births_sarimax_timeseries[region]['forecast']['mean'] 
+
+
+#%% Second corrections
+
+second_correct_regions = ['ΕΥΒΟΙΑΣ', 'ΔΩΔΕΚΑΝΗΣΟΥ', 'ΚΥΚΛΑΔΩΝ']
+
+second_exclude = {key : [births_sarimax_timeseries[key]['order'],
+                         corrected_births_sarimax_timeseries[key]['order']]
+           for key in second_correct_regions}
+
+second_corrected_births_sarimax_timeseries = {}
+ 
+for region in second_exclude.keys():
+    ts = births_df[region]
+    print(f'{region}')
+     
+    second_corrected_births_sarimax_timeseries[region] = correct_forecasts(ts,
+                                                             region_name = region,
+                                                             max_pred_year = 2030,
+                                                             plot = True,
+                                                             exclude = exclude,
+                                                             ps = [1, 2, 3],
+                                                             ds = [0],
+                                                             qs = [1]
+                                                             )
+    
+    births_sarimax_timeseries[region] = second_corrected_births_sarimax_timeseries[region]
+    
+    births_sarimax_pred_df[region] = second_corrected_births_sarimax_timeseries[region]['forecast']['mean']
 
 full_births_sarimax_timeseries_df = pd.concat([births_df, births_sarimax_pred_df], axis = 0)
 

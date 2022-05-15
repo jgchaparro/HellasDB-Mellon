@@ -7,7 +7,7 @@ Created on Thu May 12 13:13:23 2022
 
 import pandas as pd
 import numpy as np
-from functions import evaluate_forecasts_2
+from functions import evaluate_forecasts_2, correct_forecasts
 
 import pickle
 import warnings
@@ -97,11 +97,18 @@ if generate_forecasts:
         ts = deceases_df[region]
         print(f'{region}')
         
-        deceases_timeseries[region] = evaluate_forecasts_2(ts,
-                                 region_name = region,
-                                 max_pred_year = 2030,
-                                 plot = True)
-    
+        if region not in  ['ΕΒΡΟΣ', 'ΜΑΓΝΗΣΙΑΣ']:
+            deceases_timeseries[region] = evaluate_forecasts_2(ts,
+                                     region_name = region,
+                                     max_pred_year = 2030,
+                                     plot = True,
+                                     ps = [1, 2, 4, 5, 6])
+        else:
+            deceases_timeseries[region] = evaluate_forecasts_2(ts,
+                                     region_name = region,
+                                     max_pred_year = 2030,
+                                     plot = True)
+        
     deceases_pred_df = pd.DataFrame(
                         data = {key : deceases_timeseries[key]['forecast']['mean'] 
                                 for key in deceases_timeseries.keys()})
@@ -111,7 +118,72 @@ else:
     deceases_pred_df = pd.read_csv('../data/processed_csv/deceases_forecasts.csv', 
                                  index_col = 'year')
 
-pickle.dump(deceases_timeseries, open('deceases_timeseries.p', "wb"))
+#pickle_file = open('deceases_timeseries.p', "wb")
+#pick = pickle.dump(deceases_timeseries, pickle_file)
+#pickle_file.close()
+#deceases_timeseries = pickle.load(open('deceases_timeseries.p', "rb"))
+
+full_deceases_timeseries_df = pd.concat([deceases_df, deceases_pred_df], axis = 0)
+
+#%% Correct predictions
+
+correct_regions = ['ΚΙΛΚΙΣ', 'ΚΑΣΤΟΡΙΑΣ', 'ΑΙΤΩΛΙΑΣ_ΚΑΙ_ΑΚΑΡΝΑΝΙΑΣ', 'ΛΑΚΩΝΙΑΣ',
+                   'ΜΕΣΣΗΝΙΑΣ', 'ΛΑΣΙΘΙΟΥ', 'ΙΩΑΝΝΙΝΩΝ', 'ΜΑΓΝΗΣΙΑΣ', 'ΧΙΟΥ',
+                   'ΕΥΡΥΤΑΝΙΑΣ', 'ΦΩΚΙΔΟΣ', 'ΗΡΑΚΛΕΙΟΥ']
+#correct_regions = ['ΗΡΑΚΛΕΙΟΥ']
+
+corrected_deceases_timeseries = {}
+
+exclude = {key : [deceases_timeseries[key]['order']]
+           for key in correct_regions}
+ 
+
+ 
+for region in exclude.keys():
+    ts = deceases_df[region]
+    print(f'{region}')
+     
+    corrected_deceases_timeseries[region] = correct_forecasts(ts,
+                                                             region_name = region,
+                                                             max_pred_year = 2030,
+                                                             plot = True,
+                                                             exclude = exclude
+                                                             #ps = [3],
+                                                             #ds = [0],
+                                                             #qs = [3]
+                                                             )
+    deceases_timeseries[region] = corrected_deceases_timeseries[region]
+    
+     
+    deceases_pred_df[region] = corrected_deceases_timeseries[region]['forecast']['mean']
+
+#%% Second corrections
+
+second_correct_regions = ['ΛΑΣΙΘΙΟΥ', 'ΛΑΚΩΝΙΑΣ', 'ΜΕΣΣΗΝΙΑΣ', 'ΦΩΚΙΔΟΣ']
+
+second_exclude = {key : [deceases_timeseries[key]['order'],
+                         corrected_deceases_timeseries[key]['order']]
+           for key in second_correct_regions}
+
+second_corrected_deceases_timeseries = {}
+ 
+for region in second_exclude.keys():
+    ts = deceases_df[region]
+    print(f'{region}')
+     
+    second_corrected_deceases_timeseries[region] = correct_forecasts(ts,
+                                                             region_name = region,
+                                                             max_pred_year = 2030,
+                                                             plot = True,
+                                                             exclude = exclude,
+                                                             ps = [2, 3],
+                                                             ds = [0],
+                                                             qs = [1, 2]
+                                                             )
+     
+    deceases_timeseries[region] = second_corrected_deceases_timeseries[region]
+    
+    deceases_pred_df[region] = second_corrected_deceases_timeseries[region]['forecast']['mean']
 
 full_deceases_timeseries_df = pd.concat([deceases_df, deceases_pred_df], axis = 0)
 
@@ -163,4 +235,32 @@ for col in deceases_timeseries.keys():
 
 unrolled_df.to_excel('../data/final_data/unrolled_deceases_timeseries.xlsx',
                      sheet_name = 'Deceases')
-    
+
+#%% Prediction for Evros
+
+# =============================================================================
+# deceases_timeseries = {}
+# 
+# generate_forecasts = True
+# 
+# if generate_forecasts:
+#     for region in deceases_df.columns[:1]:
+#         region = 'ΛΑΚΩΝΙΑΣ'
+#         ts = deceases_df[region]
+#         print(f'{region}')
+#         
+#         deceases_timeseries[region] = evaluate_forecasts_2(ts,
+#                                  region_name = region,
+#                                  max_pred_year = 2030,
+#                                  plot = True,
+#                                  ps = [1, 2, 3, 4, 6])
+#     
+#     deceases_pred_df = pd.DataFrame(
+#                         data = {key : deceases_timeseries[key]['forecast']['mean'] 
+#                                 for key in deceases_timeseries.keys()})
+#     deceases_pred_df .index.name = 'year'
+#     
+# else:
+#     deceases_pred_df = pd.read_csv('../data/processed_csv/deceases_forecasts.csv', 
+#                                  index_col = 'year')
+# =============================================================================

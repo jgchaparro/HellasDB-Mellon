@@ -8,7 +8,7 @@ Created on Fri May 13 12:07:30 2022
 import pandas as pd
 import numpy as np
 
-from functions import evaluate_forecasts_2
+from functions import evaluate_forecasts_2, correct_forecasts
 from utils import order
 
 import pickle
@@ -40,7 +40,7 @@ if generate_forecasts:
         
         gdp_timeseries[region] = evaluate_forecasts_2(ts,
                                  region_name = region,
-                                 max_pred_year = 2030,
+                                  max_pred_year = 2030,
                                  trends = [None, 't'],
                                  plot = True)
     
@@ -53,7 +53,99 @@ else:
     gdp_pred_df = pd.read_csv('../data/processed_csv/gdp_forecasts.csv', 
                                  index_col = 'year')
 
-pickle.dump(gdp_timeseries, open('gdp_timeseries.p', "wb"))
+#pickle_file = open('gdp_timeseries.p', "wb")
+#pick = pickle.dump(gdp_timeseries, pickle_file)
+#pickle_file.close()
+
+#gdp_timeseries = pickle.load(open('gdp_timeseries.p', "rb"))
+
+#%% Correct predictions
+
+correct_regions = ['ΒΟΙΩΤΙΑΣ', 'ΚΥΚΛΑΔΩΝ', 'ΛΑΣΙΘΙΟΥ', 'ΛΑΚΩΝΙΑΣ',
+                   'ΗΛΕΙΑΣ', 'ΛΕΥΚΑΔΟΣ', 'ΚΕΦΑΛΛΗΝΙΑΣ', 'ΚΕΡΚΥΡΑΣ',
+                   'ΖΑΚΥΝΘΟΥ', 'ΤΡΙΚΑΛΩΝ', 'ΑΡΤΗΣ', 'ΚΙΛΚΙΣ', 'ΗΜΑΘΙΑΣ',
+                   'ΠΕΛΛΗΣ', 'ΠΙΕΡΙΑΣ']
+
+exclude = {key : [gdp_timeseries[key]['order']]
+           for key in correct_regions}
+ 
+corrected_gdp_timeseries = {}
+ 
+for region in exclude.keys():
+    ts = gdp_df[region]
+    print(f'{region}')
+     
+    corrected_gdp_timeseries[region] = correct_forecasts(ts,
+                                                             region_name = region,
+                                                             max_pred_year = 2030,
+                                                             plot = True,
+                                                             exclude = exclude
+                                                             #ps = [3],
+                                                             #ds = [0],
+                                                             #qs = [3]
+                                                             )
+
+    gdp_timeseries[region] = corrected_gdp_timeseries[region]
+     
+    gdp_pred_df[region] = corrected_gdp_timeseries[region]['forecast']['mean']
+ 
+
+#%% Second corrections
+
+second_correct_regions = ['ΚΙΛΚΙΣ', 'ΤΡΙΚΑΛΩΝ', 'ΛΕΥΚΑΔΟΣ', 'ΗΛΕΙΑΣ', 'ΚΥΚΛΑΔΩΝ',
+                          'ΛΑΣΙΘΙΟΥ']
+
+second_exclude = {key : [gdp_timeseries[key]['order'],
+                         corrected_gdp_timeseries[key]['order']]
+           for key in second_correct_regions}
+
+second_corrected_gdp_timeseries = {}
+ 
+for region in second_exclude.keys():
+    ts = gdp_df[region]
+    print(f'{region}')
+     
+    second_corrected_gdp_timeseries[region] = correct_forecasts(ts,
+                                                             region_name = region,
+                                                             max_pred_year = 2030,
+                                                             plot = True,
+                                                             exclude = exclude,
+                                                             ps = [1, 2, 3],
+                                                             ds = [0],
+                                                             qs = [1]
+                                                             )
+    
+    gdp_timeseries[region] = second_corrected_gdp_timeseries[region]
+    
+    gdp_pred_df[region] = second_corrected_gdp_timeseries[region]['forecast']['mean']
+    
+#%% Third corrections
+
+third_correct_regions = ['ΤΡΙΚΑΛΩΝ']
+
+third_exclude = {key : [gdp_timeseries[key]['order'],
+                         corrected_gdp_timeseries[key]['order']]
+           for key in third_correct_regions}
+
+third_corrected_gdp_timeseries = {}
+ 
+for region in third_exclude.keys():
+    ts = gdp_df[region]
+    print(f'{region}')
+     
+    third_corrected_gdp_timeseries[region] = correct_forecasts(ts,
+                                                             region_name = region,
+                                                             max_pred_year = 2030,
+                                                             plot = True,
+                                                             exclude = exclude,
+                                                             ps = [1, 3],
+                                                             ds = [0],
+                                                             qs = [1, 2]
+                                                             )
+    
+    gdp_timeseries[region] = third_corrected_gdp_timeseries[region] 
+    
+    gdp_pred_df[region] = third_corrected_gdp_timeseries[region]['forecast']['mean']
 
 full_gdp_timeseries_df = pd.concat([gdp_df, gdp_pred_df], axis = 0)
 
@@ -74,7 +166,7 @@ full_gdp_timeseries_df .index.freq = 'Y'
 
 #%% Save full gdp timeseries to df
 
-full_gdp_timeseries_df.to_excel('../data/final_data/full_timeseries_2.xlsx', 
+full_gdp_timeseries_df.to_excel('../data/final_data/full_births_sarimax_timeseries.xlsx', 
                             sheet_name = 'gdp')
 
 #%% Unroll timseries
