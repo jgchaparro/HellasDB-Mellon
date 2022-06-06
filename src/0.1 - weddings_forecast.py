@@ -7,7 +7,7 @@ Created on Thu May 12 15:42:58 2022
 
 import pandas as pd
 import numpy as np
-from functions import evaluate_forecasts_2, correct_forecasts
+from forecast_functions import evaluate_forecasts_2, correct_forecasts
 
 import pickle
 import warnings

@@ -4,7 +4,7 @@ save_data_on_exit = True
 save_history = True
 save_non_project_files = False
 project_type = 'empty-project-type'
-recent_files = ['..\\..\\..\\..\\.spyder-py3\\temp.py', '..\\..\\..\\Python\\Códigos\\hellas_db\\src\\0.1 - Prep_ELSTAT_census.py']
+recent_files = ['..\\..\\..\\..\\.spyder-py3\\temp.py', 'auxiliary_forecasts.py', 'join_forecasts.py', 'calculations_ithaki.py']
 
 [main]
 version = 0.2.0
